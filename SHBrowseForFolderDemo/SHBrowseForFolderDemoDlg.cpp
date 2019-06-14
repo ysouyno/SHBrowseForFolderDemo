@@ -63,6 +63,7 @@ BEGIN_MESSAGE_MAP(CSHBrowseForFolderDemoDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_BN_CLICKED(IDC_BUTTON_TEST, &CSHBrowseForFolderDemoDlg::OnBnClickedButtonTest)
 END_MESSAGE_MAP()
 
 
@@ -151,3 +152,66 @@ HCURSOR CSHBrowseForFolderDemoDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam)
+{
+	TCHAR sz[MAX_PATH] = {0};
+	GetClassName(hwnd, sz, MAX_PATH);
+
+	if (_tcsicmp(sz, L"SHBrowseForFolder ShellNameSpace Control") == 0)
+	{
+		CRect *parent_rect = (CRect *)lParam;
+		CRect rect;
+		GetClientRect(hwnd, &rect);
+		rect.top = parent_rect->right * 0.049 * 2;
+		rect.left = parent_rect->right * 0.049;
+		rect.right = parent_rect->right - rect.left * 2;
+		rect.bottom = parent_rect->bottom - parent_rect->bottom * 0.3;
+		::MoveWindow(hwnd, rect.left, rect.top, rect.right, rect.bottom, TRUE);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+int CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
+{
+	if (uMsg == BFFM_INITIALIZED)
+	{
+		CRect rect;
+		GetClientRect(hwnd, &rect);
+		EnumChildWindows(hwnd, EnumChildProc, (LPARAM)&rect);
+
+		HWND text_hwnd = ::GetDlgItem(hwnd, 0x3742);
+		if (text_hwnd)
+		{
+			::MoveWindow(text_hwnd, 0, 0, 1, 1, TRUE);
+		}
+	}
+
+	return 0;
+}
+
+void CSHBrowseForFolderDemoDlg::OnBnClickedButtonTest()
+{
+	// TODO: Add your control notification handler code here
+	BROWSEINFO bi;
+	ZeroMemory(&bi, sizeof(bi));
+	bi.ulFlags = BIF_NEWDIALOGSTYLE;
+	bi.hwndOwner = this->GetSafeHwnd();
+	bi.lpfn = BrowseCallbackProc;
+
+	LPMALLOC pmalloc;
+	TCHAR sz[MAX_PATH] = {0};
+
+	LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
+	if (NULL != pidl)
+	{
+		SHGetPathFromIDList(pidl, sz);
+		AfxMessageBox(sz);
+		if (SUCCEEDED(SHGetMalloc(&pmalloc)))
+		{
+			pmalloc->Free(pidl);
+			pmalloc->Release();
+		}
+	}
+}
